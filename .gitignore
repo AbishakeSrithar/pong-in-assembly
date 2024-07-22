@@ -1,0 +1,5 @@
+# Ignore all .exe files regardless of case
+*.EXE
+
+# Ignore all .obj files regardless of case
+*.OBJ
