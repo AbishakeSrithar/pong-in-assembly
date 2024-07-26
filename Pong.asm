@@ -4,42 +4,39 @@ STACK ENDS ; End of Stack
 
 DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
 
+  BALL_X DW 0Ah ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
+  BALL_Y DW 0Ah ; y position (row) of ball
+
 DATA ENDS
 
 CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instructions that the CPU executes
 
   MAIN PROC FAR ; name of Procedure and entry point because MAIN name. PROC indicates start. FAR is type of procedure (eg. can be called from any segment in seg mem model? opposite is NEAR)
-    
+  ASSUME CS:CODE, DS:DATA, SS:STACK ; Tell Code Segment about code, data, stack registers
+  PUSH DS ; push the DS Segment to the stack
+  SUB AX, AX ; Clean the AX register
+  PUSH AX ; Push AX to the stack
+  MOV AX, DATA ; Put DATA into AX
+  MOV DS, AX ; Put AX into DS
+  POP AX ; pop top item of stack to the AX register
+  POP AX; release top item (again)
+
     MOV AH, 00h ; Function to set video mode
     MOV AL, 13h ; https://mendelson.org/wpdos/videomodes.txt video mode: 320x200 256 colour
     INT 10h ; the 17th (hexadec) interrupt vector (executes the function above)
 
     ; tutorial
-    ; MOV AH, 0Bh ; Set config type to parent of background (display/cursor pos, other vid adjacent)
-    ; MOV BH, 00h ; To the background colour
-    ; MOV BL, 01h ; choose black as background colour
-    ; INT 10h ; executes above
+    MOV AH, 0Bh ; Set config type to parent of background (display/cursor pos, other vid adjacent)
+    MOV BH, 00h ; To the background colour
+    MOV BL, 00h ; choose black as background colour (default)
+    INT 10h ; executes above
 
-    ; stackoverflow but gives wrong colour/code
-    ; MOV AX,0600h 
-    ; MOV BH, 48h   
-    ; MOV CX,0000h  
-    ; MOV DX,184Fh  
-    ; INT 10h
-
-    ; chatgpt (works)
-    MOV AX, 0A000h     ; Video memory segment
-    MOV ES, AX
-    MOV DI, 0000h      ; Start at the beginning of video memory
-    MOV AL, 04h        ; Color index for red (assuming 04h is red in the current palette)
-    MOV CX, 320 * 200  ; Number of pixels to fill
-    REP STOSB          ; Fill the screen with the color
 
     MOV AH, 0Ch ; Set the config to writing a pixel
     MOV AL, 0Fh ; Choose White colour
     MOV BH, 00h ; Set the page number to 0
-    MOV CX, 0Ah ; Set the column (x)
-    MOV DX, 0Ah ; Set the line (y)
+    MOV CX, BALL_X ; Set the column (x) (CX contains 2 8 bit registers CH and CL)
+    MOV DX, BALL_Y ; Set the line (y)
     INT 10h ; executes above
     
     RET
