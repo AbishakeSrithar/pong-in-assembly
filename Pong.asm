@@ -6,6 +6,7 @@ DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
 
   BALL_X DW 0Ah ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
   BALL_Y DW 0Ah ; y position (row) of ball
+  BALL_SIZE DW 04h ; size of the ball (no pixels in width/height)
 
 DATA ENDS
 
@@ -31,16 +32,40 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
     MOV BL, 00h ; choose black as background colour (default)
     INT 10h ; executes above
 
-
-    MOV AH, 0Ch ; Set the config to writing a pixel
-    MOV AL, 0Fh ; Choose White colour
-    MOV BH, 00h ; Set the page number to 0
-    MOV CX, BALL_X ; Set the column (x) (CX contains 2 8 bit registers CH and CL)
-    MOV DX, BALL_Y ; Set the line (y)
-    INT 10h ; executes above
+    CALL DRAW_BALL
     
     RET
   MAIN ENDP ; End of procedure (PROC)
+
+  DRAW_BALL PROC NEAR
+
+    MOV CX, BALL_X ; Set the initial column (x) (CX contains 2 8 bit registers CH and CL)
+    MOV DX, BALL_Y ; Set the initial row (y)
+
+    DRAW_BALL_HORIZONTAL: 
+      MOV AH, 0Ch ; Set the config to writing a pixel
+      MOV AL, 0Fh ; Choose White colour
+      MOV BH, 00h ; Set the page number to 0
+      INT 10h ; executes above
+      INC CX ; CX += 1
+
+      ; CX - BALL_X > BALL_SIZE (true -> next row, false -> next column)
+      MOV AX, CX ; CX (prev + i) into AX
+      SUB AX, BALL_X ; AX (prev + i) - BALL_X (prev)
+      CMP AX, BALL_SIZE ; AX (i) <=> BALL_SIZE (4)
+      JNG DRAW_BALL_HORIZONTAL ; Jump Not Greater than so false - next col (So recall func)
+
+      ; only get here if TRUE -> next row
+      MOV CX, BALL_X ; the CX goes back to initial column value (reset iteration)
+      INC DX ; Increment the row number
+      
+      MOV AX, DX ; DX - BALL_Y > BALL_SIZE (true -> Done, false -> draw row in incremented row number)
+      SUB AX, BALL_Y ; AX (prev + i) - BALL_Y (prev)
+      CMP AX, BALL_SIZE ; AX (i) <=> BALL_SIZE (4)
+      JNG DRAW_BALL_HORIZONTAL ; Call func with new incremented row num if not greater than
+
+    RET
+  DRAW_BALL ENDP
 
 CODE ENDS ; End of CODE SEGMENT
 END MAIN ; END - End of source file, MAIN - labels MAIN as entry point
