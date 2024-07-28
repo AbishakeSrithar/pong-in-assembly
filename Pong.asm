@@ -4,9 +4,13 @@ STACK ENDS ; End of Stack
 
 DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
 
+  TIME_AUX DB 0 ; variable used for time delta 
+
   BALL_X DW 0Ah ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
   BALL_Y DW 0Ah ; y position (row) of ball
   BALL_SIZE DW 04h ; size of the ball (no pixels in width/height)
+  BALL_VELOCITY_X DW 05h ; X velocity of ball
+  BALL_VELOCITY_Y DW 02h ; Y velocity of ball
 
 DATA ENDS
 
@@ -22,20 +26,39 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
   POP AX ; pop top item of stack to the AX register
   POP AX; release top item (again)
 
-    MOV AH, 00h ; Function to set video mode
-    MOV AL, 13h ; https://mendelson.org/wpdos/videomodes.txt video mode: 320x200 256 colour
-    INT 10h ; the 17th (hexadec) interrupt vector (executes the function above)
+    CALL CLEAR_SCREEN
 
-    ; tutorial
-    MOV AH, 0Bh ; Set config type to parent of background (display/cursor pos, other vid adjacent)
-    MOV BH, 00h ; To the background colour
-    MOV BL, 00h ; choose black as background colour (default)
-    INT 10h ; executes above
+    CHECK_TIME:
 
-    CALL DRAW_BALL
+      MOV AH, 2Ch ; get the system time
+      INT 21h ; CH = hour, CL = minute, DH = second, DL = 1/100s
+
+      ; is the current time equal to prev
+      CMP DL, TIME_AUX ; compare 1/100s to prev time aux var
+      JE CHECK_TIME ; if equal, check again
+      ; if time has passed we reach here
+      MOV TIME_AUX, DL ; update out TIME_AUX with current time
+
+      CALL CLEAR_SCREEN
+      CALL MOVE_BALL
+      CALL DRAW_BALL
+
+      JMP CHECK_TIME ; after everything checks time again
+
     
     RET
   MAIN ENDP ; End of procedure (PROC)
+
+  MOVE_BALL PROC NEAR
+
+    MOV AX, BALL_VELOCITY_X
+    ADD BALL_X, AX
+
+    MOV AX, BALL_VELOCITY_Y
+    ADD BALL_Y, AX
+
+    RET ; doesn't have this in tutorial?
+  MOVE_BALL ENDP
 
   DRAW_BALL PROC NEAR
 
@@ -66,6 +89,21 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
 
     RET
   DRAW_BALL ENDP
+
+  CLEAR_SCREEN PROC NEAR
+
+    MOV AH, 00h ; Function to set video mode
+    MOV AL, 13h ; https://mendelson.org/wpdos/videomodes.txt video mode: 320x200 256 colour
+    INT 10h ; the 17th (hexadec) interrupt vector (executes the function above)
+
+    MOV AH, 0Bh ; Set config type to parent of background (display/cursor pos, other vid adjacent)
+    MOV BH, 00h ; To the background colour
+    MOV BL, 00h ; choose black as background colour (default)
+    INT 10h ; executes above
+
+    RET
+
+  CLEAR_SCREEN ENDP
 
 CODE ENDS ; End of CODE SEGMENT
 END MAIN ; END - End of source file, MAIN - labels MAIN as entry point
