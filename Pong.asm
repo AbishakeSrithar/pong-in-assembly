@@ -4,6 +4,11 @@ STACK ENDS ; End of Stack
 
 DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
 
+  WINDOW_WIDTH DW 140h ; 320 in hexadec
+  WINDOW_HEIGHT DW 0C8h ; 200 in hexdec
+
+  WINDOW_BOUNDS DW 6 ; Variable used for earlier collision checks
+
   TIME_AUX DB 0 ; variable used for time delta 
 
   BALL_X DW 0Ah ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
@@ -52,12 +57,43 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
   MOVE_BALL PROC NEAR
 
     MOV AX, BALL_VELOCITY_X
-    ADD BALL_X, AX
+    ADD BALL_X, AX  ; move the ball horizontally
+
+    MOV AX, WINDOW_BOUNDS
+    CMP BALL_X, AX
+    JL NEG_VELOCITY_X ; BALL_X < WINDOW_BOUNDS (true -> collided)
+
+    MOV AX, WINDOW_WIDTH
+    SUB AX, BALL_SIZE
+    SUB AX, WINDOW_BOUNDS
+    CMP BALL_X, AX
+    JG NEG_VELOCITY_X ; BALL_X > WINDOW_WIDTH - BALL_SIZE - WINDOW_BOUNDS (true -> collided)
 
     MOV AX, BALL_VELOCITY_Y
-    ADD BALL_Y, AX
+    ADD BALL_Y, AX ; move the ball vertically
 
-    RET ; doesn't have this in tutorial?
+    MOV AX, WINDOW_BOUNDS
+    CMP BALL_Y, AX
+
+    JL NEG_VELOCITY_Y ; BALL_Y < WINDOW_BOUNDS (true -> collided)
+
+    MOV AX, WINDOW_HEIGHT
+    SUB AX, BALL_SIZE
+    SUB AX, WINDOW_BOUNDS
+    CMP BALL_Y, AX
+    JG NEG_VELOCITY_Y ; BALL_Y > WINDOW_HEIGHT  - BALL_SIZE - WINDOW_BOUNDS (true -> collided)
+
+    RET
+
+    NEG_VELOCITY_X:
+      NEG BALL_VELOCITY_X ; Negates the Ball Velocity X
+      RET
+
+    NEG_VELOCITY_Y:
+      NEG BALL_VELOCITY_Y ; Negates the Ball Velocity Y
+      RET
+
+
   MOVE_BALL ENDP
 
   DRAW_BALL PROC NEAR
