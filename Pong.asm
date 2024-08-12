@@ -19,6 +19,15 @@ DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
   BALL_VELOCITY_X DW 05h ; X velocity of ball
   BALL_VELOCITY_Y DW 02h ; Y velocity of ball
 
+  PADDLE_LEFT_X DW 0Ah
+  PADDLE_LEFT_Y DW 0Ah
+
+  PADDLE_RIGHT_X DW 130h
+  PADDLE_RIGHT_Y DW 0Ah
+
+  PADDLE_WIDTH DW 05H
+  PADDLE_HEIGHT DW 1Fh
+
 DATA ENDS
 
 CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instructions that the CPU executes
@@ -49,6 +58,8 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
       CALL CLEAR_SCREEN
       CALL MOVE_BALL
       CALL DRAW_BALL
+
+      CALL DRAW_PADDLES
 
       JMP CHECK_TIME ; after everything checks time again
 
@@ -119,6 +130,7 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
       MOV AL, 0Fh ; Choose White colour
       MOV BH, 00h ; Set the page number to 0
       INT 10h ; executes above
+      
       INC CX ; CX += 1
 
       ; CX - BALL_X > BALL_SIZE (true -> next row, false -> next column)
@@ -138,6 +150,63 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
 
     RET
   DRAW_BALL ENDP
+
+  DRAW_PADDLES PROC NEAR
+
+    MOV CX, PADDLE_LEFT_X ; Set the initial column (x) (CX contains 2 8 bit registers CH and CL)
+    MOV DX, PADDLE_LEFT_Y ; Set the initial row (y)
+
+    DRAW_PADDLE_LEFT_HORIZONTAL:
+      MOV AH, 0Ch ; Set the config to writing a pixel
+      MOV AL, 0Fh ; Choose White colour
+      MOV BH, 00h ; Set the page number to 0
+      INT 10h ; executes above
+
+      INC CX ; CX += 1
+
+      ; CX - PADDLE_LEFT_X > PADDLE_WIDTH (true -> next row, false -> next column)
+      MOV AX, CX ; CX (prev + i) into AX
+      SUB AX, PADDLE_LEFT_X ; AX (prev + i) - PADDLE_LEFT_X (prev)
+      CMP AX, PADDLE_WIDTH ; AX (i) <=> PADDLE_WIDTH (4)
+      JNG DRAW_PADDLE_LEFT_HORIZONTAL ; Jump Not Greater than so false - next col (So recall func)
+
+      ; only get here if TRUE -> next row
+      MOV CX, PADDLE_LEFT_X ; the CX goes back to initial column value (reset iteration)
+      INC DX ; Increment the row number
+      
+      MOV AX, DX ; DX - PADDLE_LEFT_Y > PADDLE_HEIGHT (true -> Done, false -> draw row in incremented row number)
+      SUB AX, PADDLE_LEFT_Y ; AX (prev + i) - PADDLE_LEFT_Y (prev)
+      CMP AX, PADDLE_HEIGHT ; AX (i) <=> PADDLE_HEIGHT (4)
+      JNG DRAW_PADDLE_LEFT_HORIZONTAL ; Call func with new incremented row num if not greater than
+
+    MOV CX, PADDLE_RIGHT_X ; Set the initial column (x) (CX contains 2 8 bit registers CH and CL)
+    MOV DX, PADDLE_RIGHT_Y ; Set the initial row (y)
+
+    DRAW_PADDLE_RIGHT_HORIZONTAL:
+      MOV AH, 0Ch ; Set the config to writing a pixel
+      MOV AL, 0Fh ; Choose White colour
+      MOV BH, 00h ; Set the page number to 0
+      INT 10h ; executes above
+
+      INC CX ; CX += 1
+
+      ; CX - PADDLE_RIGHT_X > PADDLE_WIDTH (true -> next row, false -> next column)
+      MOV AX, CX ; CX (prev + i) into AX
+      SUB AX, PADDLE_RIGHT_X ; AX (prev + i) - PADDLE_RIGHT_X (prev)
+      CMP AX, PADDLE_WIDTH ; AX (i) <=> PADDLE_WIDTH (4)
+      JNG DRAW_PADDLE_RIGHT_HORIZONTAL ; Jump Not Greater than so false - next col (So recall func)
+
+      ; only get here if TRUE -> next row
+      MOV CX, PADDLE_RIGHT_X ; the CX goes back to initial column value (reset iteration)
+      INC DX ; Increment the row number
+      
+      MOV AX, DX ; DX - PADDLE_RIGHT_Y > PADDLE_HEIGHT (true -> Done, false -> draw row in incremented row number)
+      SUB AX, PADDLE_RIGHT_Y ; AX (prev + i) - PADDLE_RIGHT_Y (prev)
+      CMP AX, PADDLE_HEIGHT ; AX (i) <=> PADDLE_HEIGHT (4)
+      JNG DRAW_PADDLE_RIGHT_HORIZONTAL ; Call func with new incremented row num if not greater than
+
+  RET
+  DRAW_PADDLES ENDP
 
   CLEAR_SCREEN PROC NEAR
 
