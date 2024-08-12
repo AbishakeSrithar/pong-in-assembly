@@ -6,10 +6,12 @@ DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
 
   WINDOW_WIDTH DW 140h ; 320 in hexadec
   WINDOW_HEIGHT DW 0C8h ; 200 in hexdec
-
   WINDOW_BOUNDS DW 6 ; Variable used for earlier collision checks
 
-  TIME_AUX DB 0 ; variable used for time delta 
+  TIME_AUX DB 0 ; variable used for time delta
+
+  BALL_ORIGINAL_X DW 0A0h ; 320/2=160 in hexadec
+  BALL_ORIGINAL_Y DW 64h ; 200/2=100 in hexadec
 
   BALL_X DW 0Ah ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
   BALL_Y DW 0Ah ; y position (row) of ball
@@ -61,13 +63,13 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
 
     MOV AX, WINDOW_BOUNDS
     CMP BALL_X, AX
-    JL NEG_VELOCITY_X ; BALL_X < WINDOW_BOUNDS (true -> collided)
+    JL RESET_POSITION ; BALL_X < WINDOW_BOUNDS (true -> collided)
 
     MOV AX, WINDOW_WIDTH
     SUB AX, BALL_SIZE
     SUB AX, WINDOW_BOUNDS
     CMP BALL_X, AX
-    JG NEG_VELOCITY_X ; BALL_X > WINDOW_WIDTH - BALL_SIZE - WINDOW_BOUNDS (true -> collided)
+    JG RESET_POSITION ; BALL_X > WINDOW_WIDTH - BALL_SIZE - WINDOW_BOUNDS (true -> collided)
 
     MOV AX, BALL_VELOCITY_Y
     ADD BALL_Y, AX ; move the ball vertically
@@ -85,8 +87,8 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
 
     RET
 
-    NEG_VELOCITY_X:
-      NEG BALL_VELOCITY_X ; Negates the Ball Velocity X
+    RESET_POSITION:
+      CALL RESET_BALL_POSITION
       RET
 
     NEG_VELOCITY_Y:
@@ -95,6 +97,17 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
 
 
   MOVE_BALL ENDP
+
+  RESET_BALL_POSITION PROC NEAR
+
+    MOV AX, BALL_ORIGINAL_X
+    MOV BALL_X, AX
+
+    MOV AX, BALL_ORIGINAL_Y
+    MOV BALL_Y, AX
+
+    RET
+  RESET_BALL_POSITION ENDP
 
   DRAW_BALL PROC NEAR
 
