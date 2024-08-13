@@ -27,6 +27,7 @@ DATA SEGMENT PARA 'DATA' ; Data Segments are storage for variables and constants
 
   PADDLE_WIDTH DW 05H
   PADDLE_HEIGHT DW 1Fh
+  PADDLE_VELOCITY DW 05h
 
 DATA ENDS
 
@@ -56,9 +57,11 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
       MOV TIME_AUX, DL ; update out TIME_AUX with current time
 
       CALL CLEAR_SCREEN
+
       CALL MOVE_BALL
       CALL DRAW_BALL
 
+      CALL MOVE_PADDLES
       CALL DRAW_PADDLES
 
       JMP CHECK_TIME ; after everything checks time again
@@ -108,6 +111,108 @@ CODE SEGMENT PARA 'CODE' ; Code Segments contains the actual machine instruction
 
 
   MOVE_BALL ENDP
+
+  MOVE_PADDLES PROC NEAR
+
+    ; LEFT PADDLE MOVEMENT
+    ; Check if any key is being pressed (if not check other paddle)? if no key press then no paddles will move? ********TODO*********
+    MOV AH, 01h
+    INT 16h
+    JZ CHECK_RIGHT_PADDLE_MOVEMENT ; ZF = 1, JZ -> Jump if Zero (This is needed, why?) **************TODO***********
+
+    ; Check which key is being pressed (AL = ASCII Char)
+    MOV AH, 00h
+    INT 16h
+
+    ; If it is 'w' or 'W' move up
+    CMP AL, 77h ; 'w'
+    JE MOVE_LEFT_PADDLE_UP
+    CMP AL, 57h ; 'W'
+    JE MOVE_LEFT_PADDLE_UP
+
+    ; If it is 's' or 'S' move down
+    CMP AL, 73h ; 's'
+    JE MOVE_LEFT_PADDLE_DOWN
+    CMP AL, 53h ; 'S'
+    JE MOVE_LEFT_PADDLE_DOWN
+    JMP CHECK_RIGHT_PADDLE_MOVEMENT
+
+    MOVE_LEFT_PADDLE_UP:
+      MOV AX, PADDLE_VELOCITY
+      SUB PADDLE_LEFT_Y, AX
+
+      MOV AX, WINDOW_BOUNDS
+      CMP PADDLE_LEFT_Y, AX
+      JL FIX_PADDLE_LEFT_TOP_POSITION
+      JMP CHECK_RIGHT_PADDLE_MOVEMENT
+
+      FIX_PADDLE_LEFT_TOP_POSITION:
+        MOV PADDLE_LEFT_Y, AX
+        JMP CHECK_RIGHT_PADDLE_MOVEMENT
+
+    MOVE_LEFT_PADDLE_DOWN:
+      MOV AX, PADDLE_VELOCITY
+      ADD PADDLE_LEFT_Y, AX
+
+      MOV AX, WINDOW_HEIGHT
+      SUB AX, WINDOW_BOUNDS
+      SUB AX, PADDLE_HEIGHT
+      CMP PADDLE_LEFT_Y, AX
+      JG FIX_PADDLE_LEFT_BOTTOM_POSITION
+      JMP CHECK_RIGHT_PADDLE_MOVEMENT
+
+      FIX_PADDLE_LEFT_BOTTOM_POSITION:
+        MOV PADDLE_LEFT_Y, AX
+        JMP CHECK_RIGHT_PADDLE_MOVEMENT
+
+    ; Right PADDLE MOVEMENT
+    CHECK_RIGHT_PADDLE_MOVEMENT:
+
+      ; If it is 'o' or 'O' move up
+      CMP AL, 6Fh ; 'o'
+      JE MOVE_RIGHT_PADDLE_UP
+      CMP AL, 4Fh ; 'O'
+      JE MOVE_RIGHT_PADDLE_UP
+
+      ; If it is 'l' or 'L' move down
+      CMP AL, 6Ch ; 'l'
+      JE MOVE_RIGHT_PADDLE_DOWN
+      CMP AL, 4Ch ; 'L'
+      JE MOVE_RIGHT_PADDLE_DOWN
+      JMP EXIT_PADDLE_MOVEMENT
+
+      MOVE_RIGHT_PADDLE_UP:
+        MOV AX, PADDLE_VELOCITY
+        SUB PADDLE_RIGHT_Y, AX
+
+        MOV AX, WINDOW_BOUNDS
+        CMP PADDLE_RIGHT_Y, AX
+        JL FIX_PADDLE_RIGHT_TOP_POSITION
+        JMP EXIT_PADDLE_MOVEMENT
+
+        FIX_PADDLE_RIGHT_TOP_POSITION:
+          MOV PADDLE_RIGHT_Y, AX
+          JMP EXIT_PADDLE_MOVEMENT
+
+      MOVE_RIGHT_PADDLE_DOWN:
+        MOV AX, PADDLE_VELOCITY
+        ADD PADDLE_RIGHT_Y, AX
+
+        MOV AX, WINDOW_HEIGHT
+        SUB AX, WINDOW_BOUNDS
+        SUB AX, PADDLE_HEIGHT
+        CMP PADDLE_RIGHT_Y, AX
+        JG FIX_PADDLE_RIGHT_BOTTOM_POSITION
+        JMP EXIT_PADDLE_MOVEMENT
+
+        FIX_PADDLE_RIGHT_BOTTOM_POSITION:
+          MOV PADDLE_RIGHT_Y, AX
+          JMP EXIT_PADDLE_MOVEMENT
+
+      EXIT_PADDLE_MOVEMENT:
+        RET
+  RET
+  MOVE_PADDLES ENDP
 
   RESET_BALL_POSITION PROC NEAR
 
