@@ -10,6 +10,9 @@ DATA SEGMENT PARA 'DATA'               ; Data Segments are storage for variables
 
   TIME_AUX DB 0                        ; variable used for time delta
 
+  TEXT_PLAYER_ONE_POINTS DB '0', '$'   ; text with player 1 points
+  TEXT_PLAYER_TWO_POINTS DB '0', '$'   ; text with player 2 points
+
   BALL_ORIGINAL_X DW 0A0h              ; 320/2=160 in hexadec
   BALL_ORIGINAL_Y DW 64h               ; 200/2=100 in hexadec
 
@@ -21,9 +24,11 @@ DATA SEGMENT PARA 'DATA'               ; Data Segments are storage for variables
 
   PADDLE_LEFT_X DW 0Ah                 ; current x position of left paddle
   PADDLE_LEFT_Y DW 0Ah                 ; current y position of left paddle
+  PLAYER_ONE_POINTS DB 0               ; current points of the left player (player one)
 
   PADDLE_RIGHT_X DW 130h               ; current x position of right paddle
   PADDLE_RIGHT_Y DW 0Ah                ; current y position of right paddle
+  PLAYER_TWO_POINTS DB 0               ; current points of the right player (player two)
 
   PADDLE_WIDTH DW 05H                  ; default paddle width
   PADDLE_HEIGHT DW 1Fh                 ; default paddle height
@@ -63,6 +68,8 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
       CALL MOVE_PADDLES                ; move the 2 paddles (check for pressed keys)
       CALL DRAW_PADDLES                ; draw the 2 paddles with updated positions
 
+      CALL DRAW_UI                     ; draw all the game user interface
+
       JMP CHECK_TIME                   ; after everything checks time again
 
     
@@ -78,18 +85,38 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
 ;   check if ball has passed the left boundary (BALL_X < WINDOW_BOUNDS (true -> collided))
     MOV AX, WINDOW_BOUNDS
     CMP BALL_X, AX 
-    JL RESET_POSITION 
+    JL GIVE_POINT_TO_PLAYER_TWO        ; if less, add point to player two and reset ball position
 
 ;   Check if the ball has passed the right boundary (BALL_X > WINDOW_WIDTH - BALL_SIZE - WINDOW_BOUNDS (true -> collided))
     MOV AX, WINDOW_WIDTH
     SUB AX, BALL_SIZE
     SUB AX, WINDOW_BOUNDS
     CMP BALL_X, AX
-    JG RESET_POSITION
+    JG GIVE_POINT_TO_PLAYER_ONE        ; if greater, add point to player one and reset ball position
     JMP MOVE_BALL_VERTICALLY
-    RESET_POSITION:
+
+;   Give 1 point to Player 2 and reset ball position
+    GIVE_POINT_TO_PLAYER_ONE:
+      INC PLAYER_ONE_POINTS
       CALL RESET_BALL_POSITION         ; Resets Ball to centre of screen
+
+      CMP PLAYER_ONE_POINTS, 05h;    ; Check if player has reached 5 points
+      JGE GAME_OVER
       RET
+;   Give 1 point to Player 1 and reset ball position
+    GIVE_POINT_TO_PLAYER_TWO:
+      INC PLAYER_TWO_POINTS
+      CALL RESET_BALL_POSITION         ; Resets Ball to centre of screen
+
+      CMP PLAYER_TWO_POINTS, 05h;    ; Check if player has reached 5 points
+      JGE GAME_OVER
+      RET
+
+    GAME_OVER:                         ; Reach 5 points for Game Over
+      MOV PLAYER_ONE_POINTS, 00h      ; Reset Player One points
+      MOV PLAYER_TWO_POINTS, 00h     ; Reset Player Two points
+      RET
+
 ;   move the ball vertically
     MOVE_BALL_VERTICALLY:
 
@@ -376,6 +403,33 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
 
   RET
   DRAW_PADDLES ENDP
+
+  DRAW_UI PROC NEAR
+
+;   Draw the points of the left player (player one)
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 04h                        ; set row number
+    MOV DL, 06h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_PLAYER_ONE_POINTS     ; give DX a pointer to the string TEXT_PLAYER_ONE_POINTS
+    INT 21h                            ; print the string 
+
+;   Draw the points of the right player (player two)
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 04h                        ; set row number
+    MOV DL, 1Fh                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_PLAYER_TWO_POINTS     ; give DX a pointer to the string TEXT_PLAYER_ONE_POINTS
+    INT 21h                            ; print the string 
+    RET
+  
+  DRAW_UI ENDP
 
   CLEAR_SCREEN PROC NEAR
 
