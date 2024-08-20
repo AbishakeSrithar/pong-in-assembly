@@ -85,36 +85,42 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
 ;   check if ball has passed the left boundary (BALL_X < WINDOW_BOUNDS (true -> collided))
     MOV AX, WINDOW_BOUNDS
     CMP BALL_X, AX 
-    JL GIVE_POINT_TO_PLAYER_TWO        ; if less, add point to player two and reset ball position
+    JL GIVE_POINT_TO_PLAYER_TWO                ; if less, add point to player two and reset ball position
 
 ;   Check if the ball has passed the right boundary (BALL_X > WINDOW_WIDTH - BALL_SIZE - WINDOW_BOUNDS (true -> collided))
     MOV AX, WINDOW_WIDTH
     SUB AX, BALL_SIZE
     SUB AX, WINDOW_BOUNDS
     CMP BALL_X, AX
-    JG GIVE_POINT_TO_PLAYER_ONE        ; if greater, add point to player one and reset ball position
+    JG GIVE_POINT_TO_PLAYER_ONE                ; if greater, add point to player one and reset ball position
     JMP MOVE_BALL_VERTICALLY
 
 ;   Give 1 point to Player 2 and reset ball position
     GIVE_POINT_TO_PLAYER_ONE:
       INC PLAYER_ONE_POINTS
-      CALL RESET_BALL_POSITION         ; Resets Ball to centre of screen
+      CALL RESET_BALL_POSITION                 ; Resets Ball to centre of screen
 
-      CMP PLAYER_ONE_POINTS, 05h;    ; Check if player has reached 5 points
+      CALL UPDATE_TEXT_PLAYER_ONE_POINTS       ; Update text of Player 1 points
+
+      CMP PLAYER_ONE_POINTS, 05h;              ; Check if player has reached 5 points
       JGE GAME_OVER
       RET
 ;   Give 1 point to Player 1 and reset ball position
     GIVE_POINT_TO_PLAYER_TWO:
       INC PLAYER_TWO_POINTS
-      CALL RESET_BALL_POSITION         ; Resets Ball to centre of screen
+      CALL RESET_BALL_POSITION                 ; Resets Ball to centre of screen
+      
+      CALL UPDATE_TEXT_PLAYER_TWO_POINTS       ; Update text of Player 2 points
 
-      CMP PLAYER_TWO_POINTS, 05h;    ; Check if player has reached 5 points
+      CMP PLAYER_TWO_POINTS, 05h;              ; Check if player has reached 5 points
       JGE GAME_OVER
       RET
 
     GAME_OVER:                         ; Reach 5 points for Game Over
       MOV PLAYER_ONE_POINTS, 00h      ; Reset Player One points
       MOV PLAYER_TWO_POINTS, 00h     ; Reset Player Two points
+      CALL UPDATE_TEXT_PLAYER_ONE_POINTS
+      CALL UPDATE_TEXT_PLAYER_TWO_POINTS
       RET
 
 ;   move the ball vertically
@@ -313,6 +319,9 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
     MOV AX, BALL_ORIGINAL_Y
     MOV BALL_Y, AX
 
+    NEG BALL_VELOCITY_X
+    NEG BALL_VELOCITY_Y
+
     RET
   RESET_BALL_POSITION ENDP
 
@@ -430,6 +439,31 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
     RET
   
   DRAW_UI ENDP
+
+  UPDATE_TEXT_PLAYER_ONE_POINTS PROC NEAR
+
+    XOR AX, AX
+    MOV AL, PLAYER_ONE_POINTS          ; P1: 2pnts => AL = 2
+
+    ; Convert decimal value to ASCII code character (add 30h for num, or subtract for vice versa)
+    ADD AL, 30h
+    MOV [TEXT_PLAYER_ONE_POINTS], AL
+
+    RET
+  UPDATE_TEXT_PLAYER_ONE_POINTS ENDP
+
+  UPDATE_TEXT_PLAYER_TWO_POINTS PROC NEAR
+
+    XOR AX, AX
+    MOV AL, PLAYER_TWO_POINTS          ; P2: 2pnts => AL = 2
+
+    ; Convert decimal value to ASCII code character (add 30h for num, or subtract for vice versa)
+    ADD AL, 30h
+    MOV [TEXT_PLAYER_TWO_POINTS], AL
+  
+  RET
+  UPDATE_TEXT_PLAYER_TWO_POINTS ENDP
+
 
   CLEAR_SCREEN PROC NEAR
 
