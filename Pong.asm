@@ -1,4 +1,5 @@
-STACK SEGMENT PARA STACK 'STACK'                                    ; Defines Segment (block of memory) of type Stack (stack data structures live here?) named 'stack' (optional param). para means paragraph-aligned (memory address is at a multiple of 16).
+; Defines Segment (block of memory) of type Stack (stack data structures live here?) named 'stack' (optional param). para means paragraph-aligned (memory address is at a multiple of 16)
+STACK SEGMENT PARA STACK 'STACK'                                    
   DB 64 DUP (' ')                                                   ; Reserves 64 bytes of memory, initialized to 0, for the stack. DB - Defined Byte, 64 DUP(licate) 0 (64 times)
 STACK ENDS ; End of Stack                             
 
@@ -10,8 +11,9 @@ DATA SEGMENT PARA 'DATA'                                            ; Data Segme
 
   TIME_AUX DB 0                                                     ; variable used for time delta
   GAME_ACTIVE DB 1                                                  ; Game in progress (1: True, 0: False (Game Over))
+  EXITING_GAME DB 0                                                 ; 0 -> not exiting, 1 -> exiting game
   WINNER_INDEX DB 0                                                 ; The index of the winner (1 -> player one, 2 -> player two)
-  CURRENT_SCENE DB 1                                                ; The index of the current scene (0 -> main menu, 1 -> the game)
+  CURRENT_SCENE DB 0                                                ; The index of the current scene (0 -> main menu, 1 -> the game)
 
   TEXT_PLAYER_ONE_POINTS DB '0', '$'                                ; Text with player 1 points
   TEXT_PLAYER_TWO_POINTS DB '0', '$'                                ; Text with player 2 points
@@ -40,6 +42,7 @@ DATA SEGMENT PARA 'DATA'                                            ; Data Segme
   PADDLE_RIGHT_X DW 130h                                            ; Current x position of right paddle
   PADDLE_RIGHT_Y DW 0Ah                                             ; Current y position of right paddle
   PLAYER_TWO_POINTS DB 0                                            ; Current points of the right player (player two)
+  AI_CONTROLLED DB 0                                                ; Right paddle controlled by AI
                             
   PADDLE_WIDTH DW 05H                                               ; Default paddle width
   PADDLE_HEIGHT DW 1Fh                                              ; Default paddle height
@@ -61,7 +64,10 @@ CODE SEGMENT PARA 'CODE'                                            ; Code Segme
 
     CALL CLEAR_SCREEN                                               ; Set initial video mode configs
          
-    CHECK_TIME:   
+    CHECK_TIME:
+
+      CMP EXITING_GAME, 01h
+      JE START_EXIT_PROCESS
 
       CMP CURRENT_SCENE, 00h
       JE SHOW_MAIN_MENU
@@ -96,6 +102,9 @@ CODE SEGMENT PARA 'CODE'                                            ; Code Segme
       SHOW_MAIN_MENU:
         CALL DRAW_MAIN_MENU
         JMP CHECK_TIME
+
+      START_EXIT_PROCESS:
+        CALL CONCLUDE_EXIT_GAME
 
       RET
   MAIN ENDP                                                        ; End of procedure (PROC)         
@@ -302,18 +311,41 @@ CODE SEGMENT PARA 'CODE'                                            ; Code Segme
 ;   Right PADDLE MOVEMENT
     CHECK_RIGHT_PADDLE_MOVEMENT:
 
-;     If it is 'o' or 'O' move up
-      CMP AL, 6Fh                                                ; 'o'
-      JE MOVE_RIGHT_PADDLE_UP
-      CMP AL, 4Fh                                                ; 'O'
-      JE MOVE_RIGHT_PADDLE_UP
+    CMP AI_CONTROLLED, 01h
+    JE CONTROL_BY_AI
+;     When paddle is used by human
+      CHECK_FOR_KEYS:
+  ;     If it is 'o' or 'O' move up
+        CMP AL, 6Fh                                                ; 'o'
+        JE MOVE_RIGHT_PADDLE_UP
+        CMP AL, 4Fh                                                ; 'O'
+        JE MOVE_RIGHT_PADDLE_UP
 
-;     If it is 'l' or 'L' move down
-      CMP AL, 6Ch                                                ; 'l'
-      JE MOVE_RIGHT_PADDLE_DOWN
-      CMP AL, 4Ch                                                ; 'L'
-      JE MOVE_RIGHT_PADDLE_DOWN
-      JMP EXIT_PADDLE_MOVEMENT
+  ;     If it is 'l' or 'L' move down
+        CMP AL, 6Ch                                                ; 'l'
+        JE MOVE_RIGHT_PADDLE_DOWN
+        CMP AL, 4Ch                                                ; 'L'
+        JE MOVE_RIGHT_PADDLE_DOWN
+        JMP EXIT_PADDLE_MOVEMENT
+
+;     When the paddle is controlled by AI
+      CONTROL_BY_AI:
+        ; Check if ball is above paddle (BALL_Y + BALL_SIZE < PADDLE_RIGHT_Y)
+        ; If it is then move paddle up
+        MOV AX, BALL_Y
+        ADD AX, BALL_SIZE
+        CMP AX, PADDLE_RIGHT_Y
+        JL MOVE_RIGHT_PADDLE_UP
+
+        ; Check if ball is below paddle (BALL_Y > PADDLE_RIGHT_Y + PADDLE_HEIGHT)
+        ; If it is then move paddle down
+        MOV AX, PADDLE_RIGHT_Y
+        ADD AX, PADDLE_HEIGHT
+        CMP BALL_Y, AX
+        JG MOVE_RIGHT_PADDLE_DOWN
+
+        ; If none of the conditions above is true, then don't move the paddle (exit paddle movement)
+        JMP EXIT_PADDLE_MOVEMENT
 
       MOVE_RIGHT_PADDLE_UP:
         MOV AX, PADDLE_VELOCITY
@@ -624,11 +656,46 @@ CODE SEGMENT PARA 'CODE'                                            ; Code Segme
     LEA DX, TEXT_MAIN_MENU_EXIT                                  ; Give DX a pointer to the string TEXT_MAIN_MENU_EXIT
     INT 21h
 
-;   Waits for key press
-    MOV AH, 00h
-    INT 16h
+    MAIN_MENU_WAIT_FOR_KEY:
+;     Waits for key press
+      MOV AH, 00h
+      INT 16h
 
-    RET
+;     If s or S is clicked, we restart game
+      CMP AL, 'S'
+      JE START_SINGLEPLAYER
+      CMP AL, 's'
+      JE START_SINGLEPLAYER
+
+;     If m or M is clicked, we go to main menu
+      CMP AL, 'M'
+      JE START_MULTIPLAYER
+      CMP AL, 'm'
+      JE START_MULTIPLAYER
+
+;     If e or E is clicked, we go to main menu
+      CMP AL, 'E'
+      JE EXIT_GAME
+      CMP AL, 'e'
+      JE EXIT_GAME
+      JMP MAIN_MENU_WAIT_FOR_KEY
+
+    START_SINGLEPLAYER:
+      MOV CURRENT_SCENE, 01h
+      MOV GAME_ACTIVE, 01h
+      MOV AI_CONTROLLED, 00h
+      RET
+
+    START_MULTIPLAYER:    
+      MOV CURRENT_SCENE, 01h
+      MOV GAME_ACTIVE, 01h
+      MOV AI_CONTROLLED, 01h
+      RET
+
+    EXIT_GAME:
+      MOV EXITING_GAME, 01h
+      RET
+
   DRAW_MAIN_MENU ENDP
 
   UPDATE_WINNER_TEXT PROC NEAR
@@ -655,7 +722,19 @@ CODE SEGMENT PARA 'CODE'                                            ; Code Segme
 
     RET                         
 
-  CLEAR_SCREEN ENDP                         
+  CLEAR_SCREEN ENDP
+
+  CONCLUDE_EXIT_GAME PROC NEAR                                   ; Returns to text mode (from video mode)
+    
+    MOV AH, 00h                                                  ; Function to set text mode
+    MOV AL, 02h                                                  ; https://mendelson.org/wpdos/videomodes.txt
+    INT 10h
+
+    MOV AH, 4Ch                                                  ; Terminate Program
+    INT 21h
+
+    RET
+  CONCLUDE_EXIT_GAME ENDP
 
 CODE ENDS                                                        ; End of CODE SEGMENT
 END MAIN                                                         ; END - End of source file, MAIN - labels MAIN as entry point
