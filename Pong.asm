@@ -1,82 +1,106 @@
-STACK SEGMENT PARA STACK 'STACK'       ; Defines Segment (block of memory) of type Stack (stack data structures live here?) named 'stack' (optional param). para means paragraph-aligned (memory address is at a multiple of 16).
-  DB 64 DUP (' ')                      ; Reserves 64 bytes of memory, initialized to 0, for the stack. DB - Defined Byte, 64 DUP(licate) 0 (64 times)
-STACK ENDS ; End of Stack
+STACK SEGMENT PARA STACK 'STACK'                ; Defines Segment (block of memory) of type Stack (stack data structures live here?) named 'stack' (optional param). para means paragraph-aligned (memory address is at a multiple of 16).
+  DB 64 DUP (' ')                               ; Reserves 64 bytes of memory, initialized to 0, for the stack. DB - Defined Byte, 64 DUP(licate) 0 (64 times)
+STACK ENDS ; End of Stack         
+         
+DATA SEGMENT PARA 'DATA'                        ; Data Segments are storage for variables and constants
+         
+  WINDOW_WIDTH DW 140h                          ; 320 in hexadec
+  WINDOW_HEIGHT DW 0C8h                         ; 200 in hexdec
+  WINDOW_BOUNDS DW 6                            ; Variable used for earlier collision checks
+         
+  TIME_AUX DB 0                                 ; variable used for time delta
+  GAME_ACTIVE DB 1                              ; Game in progress (1: True, 0: False (Game Over))
+  WINNER_INDEX DB 0                             ; The index of the winner (1 -> player one, 2 -> player two)
+  CURRENT_SCENE DB 1                            ; The index of the current scene (0 -> main menu, 1 -> the game)
+         
+  TEXT_PLAYER_ONE_POINTS DB '0', '$'            ; text with player 1 points
+  TEXT_PLAYER_TWO_POINTS DB '0', '$'            ; text with player 2 points
+  TEXT_GAME_OVER_TITLE DB 'GAME OVER', '$'      ; text with Game Over message
+  TEXT_GAME_OVER_WINNER DB 'PLAYER 0 WON!', '$' ; text with Winner message
+  TEXT_GAME_OVER_PLAY_AGAIN DB 'Press R to play again', '$'  ; text with Play Again message
+  TEXT_GAME_OVER_MAIN_MENU DB 'Press E to exit to main menu', '$'  ; text with game over menu message
+  TEXT_MAIN_MENU_TITLE DB 'MAIN MENU', '$'      ; text with game menu title
+  TEXT_MAIN_MENU_SINGLEPLAYER DB 'SINGLEPLAYER - S KEY', '$'  ; text with single player option
+  TEXT_MAIN_MENU_MULTIPLAYER DB 'MULTIPLAYER - M KEY', '$'  ; text with 2 player option
+  TEXT_MAIN_MENU_EXIT DB 'EXIT GAME - E KEY', '$'  ; text with exit game message
 
-DATA SEGMENT PARA 'DATA'               ; Data Segments are storage for variables and constants
-
-  WINDOW_WIDTH DW 140h                 ; 320 in hexadec
-  WINDOW_HEIGHT DW 0C8h                ; 200 in hexdec
-  WINDOW_BOUNDS DW 6                   ; Variable used for earlier collision checks
-
-  TIME_AUX DB 0                        ; variable used for time delta
-
-  TEXT_PLAYER_ONE_POINTS DB '0', '$'   ; text with player 1 points
-  TEXT_PLAYER_TWO_POINTS DB '0', '$'   ; text with player 2 points
-
-  BALL_ORIGINAL_X DW 0A0h              ; 320/2=160 in hexadec
-  BALL_ORIGINAL_Y DW 64h               ; 200/2=100 in hexadec
-
-  BALL_X DW 0Ah                        ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
-  BALL_Y DW 0Ah                        ; y position (row) of ball
-  BALL_SIZE DW 04h                     ; size of the ball (no pixels in width/height)
-  BALL_VELOCITY_X DW 05h               ; X velocity of ball
-  BALL_VELOCITY_Y DW 02h               ; Y velocity of ball
-
-  PADDLE_LEFT_X DW 0Ah                 ; current x position of left paddle
-  PADDLE_LEFT_Y DW 0Ah                 ; current y position of left paddle
-  PLAYER_ONE_POINTS DB 0               ; current points of the left player (player one)
-
-  PADDLE_RIGHT_X DW 130h               ; current x position of right paddle
-  PADDLE_RIGHT_Y DW 0Ah                ; current y position of right paddle
-  PLAYER_TWO_POINTS DB 0               ; current points of the right player (player two)
-
-  PADDLE_WIDTH DW 05H                  ; default paddle width
-  PADDLE_HEIGHT DW 1Fh                 ; default paddle height
-  PADDLE_VELOCITY DW 05h               ; default paddle velocity
+  BALL_ORIGINAL_X DW 0A0h                       ; 320/2=160 in hexadec
+  BALL_ORIGINAL_Y DW 64h                        ; 200/2=100 in hexadec
+         
+  BALL_X DW 0Ah                                 ; x position (col) of ball (dw - defined word can hold 16bits instead of db-8)
+  BALL_Y DW 0Ah                                 ; y position (row) of ball
+  BALL_SIZE DW 04h                              ; size of the ball (no pixels in width/height)
+  BALL_VELOCITY_X DW 05h                        ; X velocity of ball
+  BALL_VELOCITY_Y DW 02h                        ; Y velocity of ball
+         
+  PADDLE_LEFT_X DW 0Ah                          ; current x position of left paddle
+  PADDLE_LEFT_Y DW 0Ah                          ; current y position of left paddle
+  PLAYER_ONE_POINTS DB 0                        ; current points of the left player (player one)
+         
+  PADDLE_RIGHT_X DW 130h                        ; current x position of right paddle
+  PADDLE_RIGHT_Y DW 0Ah                         ; current y position of right paddle
+  PLAYER_TWO_POINTS DB 0                        ; current points of the right player (player two)
+         
+  PADDLE_WIDTH DW 05H                           ; default paddle width
+  PADDLE_HEIGHT DW 1Fh                          ; default paddle height
+  PADDLE_VELOCITY DW 05h                        ; default paddle velocity
 
 DATA ENDS
 
-CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machine instructions that the CPU executes
+CODE SEGMENT PARA 'CODE'                        ; Code Segments contains the actual machine instructions that the CPU executes
+         
+  MAIN PROC FAR                                 ; name of Procedure and entry point because MAIN name. PROC indicates start. FAR is type of procedure (eg. can be called from any segment in seg mem model? opposite is NEAR)
+  ASSUME CS:CODE, DS:DATA, SS:STACK             ; Tell Code Segment about code, data, stack registers
+  PUSH DS                                       ; push the DS Segment to the stack
+  SUB AX, AX                                    ; Clean the AX register
+  PUSH AX                                       ; Push AX to the stack
+  MOV AX, DATA                                  ; Put DATA into AX
+  MOV DS, AX                                    ; Put AX into DS
+  POP AX                                        ; pop top item of stack to the AX register
+  POP AX                                        ; release top item (again)
+         
+    CALL CLEAR_SCREEN                           ; set initial video mode configs
+         
+    CHECK_TIME:   
 
-  MAIN PROC FAR                        ; name of Procedure and entry point because MAIN name. PROC indicates start. FAR is type of procedure (eg. can be called from any segment in seg mem model? opposite is NEAR)
-  ASSUME CS:CODE, DS:DATA, SS:STACK    ; Tell Code Segment about code, data, stack registers
-  PUSH DS                              ; push the DS Segment to the stack
-  SUB AX, AX                           ; Clean the AX register
-  PUSH AX                              ; Push AX to the stack
-  MOV AX, DATA                         ; Put DATA into AX
-  MOV DS, AX                           ; Put AX into DS
-  POP AX                               ; pop top item of stack to the AX register
-  POP AX                               ; release top item (again)
+      CMP CURRENT_SCENE, 00h
+      JE SHOW_MAIN_MENU
+          
+      CMP GAME_ACTIVE, 00h         
+      JE SHOW_GAME_OVER         
+         
+      MOV AH, 2Ch                               ; get the system time
+      INT 21h                                   ; CH = hour, CL = minute, DH = second, DL = 1/100s
+         
+      CMP DL, TIME_AUX                          ; compare 1/100s to prev time aux var
+      JE CHECK_TIME                             ; if equal, check again
+         
+      MOV TIME_AUX, DL                          ; if not update out TIME_AUX with current time
+         
+      CALL CLEAR_SCREEN                         ; clear screen by restarting video mode
+         
+      CALL MOVE_BALL                            ; move ball
+      CALL DRAW_BALL                            ; draw ball
+         
+      CALL MOVE_PADDLES                         ; move the 2 paddles (check for pressed keys)
+      CALL DRAW_PADDLES                         ; draw the 2 paddles with updated positions
+         
+      CALL DRAW_UI                              ; draw all the game user interface
+         
+      JMP CHECK_TIME                            ; after everything checks time again
+         
+      SHOW_GAME_OVER:         
+        CALL DRAW_GAME_OVER_MENU         
+        JMP CHECK_TIME
 
-    CALL CLEAR_SCREEN                  ; set initial video mode configs
+      SHOW_MAIN_MENU:
+        CALL DRAW_MAIN_MENU
+        JMP CHECK_TIME
 
-    CHECK_TIME:
-
-      MOV AH, 2Ch                      ; get the system time
-      INT 21h                          ; CH = hour, CL = minute, DH = second, DL = 1/100s
-
-      CMP DL, TIME_AUX                 ; compare 1/100s to prev time aux var
-      JE CHECK_TIME                    ; if equal, check again
-
-      MOV TIME_AUX, DL                 ; if not update out TIME_AUX with current time
-
-      CALL CLEAR_SCREEN                ; clear screen by restarting video mode
-
-      CALL MOVE_BALL                   ; move ball
-      CALL DRAW_BALL                   ; draw ball
-
-      CALL MOVE_PADDLES                ; move the 2 paddles (check for pressed keys)
-      CALL DRAW_PADDLES                ; draw the 2 paddles with updated positions
-
-      CALL DRAW_UI                     ; draw all the game user interface
-
-      JMP CHECK_TIME                   ; after everything checks time again
-
-    
-    RET
-  MAIN ENDP ; End of procedure (PROC)
-
-  MOVE_BALL PROC NEAR                  ; process movement of ball
+      RET
+  MAIN ENDP ; End of procedure (PROC)         
+         
+  MOVE_BALL PROC NEAR                           ; process movement of ball
 
 ;   move the ball horizontally
     MOV AX, BALL_VELOCITY_X
@@ -113,15 +137,28 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
       CALL UPDATE_TEXT_PLAYER_TWO_POINTS       ; Update text of Player 2 points
 
       CMP PLAYER_TWO_POINTS, 05h;              ; Check if player has reached 5 points
-      JGE GAME_OVER
+      JGE GAME_OVER                            ; Stops the game
       RET
 
     GAME_OVER:                         ; Reach 5 points for Game Over
-      MOV PLAYER_ONE_POINTS, 00h      ; Reset Player One points
-      MOV PLAYER_TWO_POINTS, 00h     ; Reset Player Two points
-      CALL UPDATE_TEXT_PLAYER_ONE_POINTS
-      CALL UPDATE_TEXT_PLAYER_TWO_POINTS
-      RET
+      CMP PLAYER_ONE_POINTS, 05h
+      JNL WINNER_IS_PLAYER_ONE         ; P1 !< 5 -> p1 wins
+      JMP WINNER_IS_PLAYER_TWO         ; else P2 wins
+
+      WINNER_IS_PLAYER_ONE:
+        MOV WINNER_INDEX, 01h
+        JMP CONTINUE_GAME_OVER
+      WINNER_IS_PLAYER_TWO:
+        MOV WINNER_INDEX, 02h
+        JMP CONTINUE_GAME_OVER
+
+      CONTINUE_GAME_OVER:
+        MOV PLAYER_ONE_POINTS, 00h      ; Reset Player One points
+        MOV PLAYER_TWO_POINTS, 00h     ; Reset Player Two points
+        CALL UPDATE_TEXT_PLAYER_ONE_POINTS
+        CALL UPDATE_TEXT_PLAYER_TWO_POINTS
+        MOV GAME_ACTIVE, 00h
+        RET
 
 ;   move the ball vertically
     MOVE_BALL_VERTICALLY:
@@ -461,8 +498,148 @@ CODE SEGMENT PARA 'CODE'               ; Code Segments contains the actual machi
     ADD AL, 30h
     MOV [TEXT_PLAYER_TWO_POINTS], AL
   
-  RET
+    RET
   UPDATE_TEXT_PLAYER_TWO_POINTS ENDP
+
+  DRAW_GAME_OVER_MENU PROC NEAR        ; Draw the game over menu
+
+    CALL CLEAR_SCREEN                  ; Clear the screen before displaying the menu
+;   Shows the menu title
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 04h                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_GAME_OVER_TITLE       ; give DX a pointer to the string TEXT_GAME_OVER_TITLE
+    INT 21h                            ; print the string 
+
+;   Shows the winner
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 06h                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    CALL UPDATE_WINNER_TEXT
+
+    MOV AH, 09h
+    LEA DX, TEXT_GAME_OVER_WINNER      ; give DX a pointer to the string TEXT_GAME_OVER_WINNER
+    INT 21h                            ; print the string
+
+;   Shows the play again message
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 08h                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_GAME_OVER_PLAY_AGAIN  ; give DX a pointer to the string TEXT_GAME_OVER_PLAY_AGAIN
+    INT 21h                            ; print the string
+
+;   Shows the main menu message
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 0Ah                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_GAME_OVER_MAIN_MENU   ; give DX a pointer to the string TEXT_GAME_OVER_MAIN_MENU
+    INT 21h                            ; print the string
+
+;   Waits for key press
+    MOV AH, 00h
+    INT 16h
+
+;   If r or R is clicked, we restart game
+    CMP AL, 'R'
+    JE RESTART_GAME
+    CMP AL, 'r'
+    JE RESTART_GAME
+
+    ;   If e or E is clicked, we go to main menu
+    CMP AL, 'E'
+    JE EXIT_TO_MAIN_MENU
+    CMP AL, 'e'
+    JE EXIT_TO_MAIN_MENU
+    RET
+
+    RESTART_GAME:
+      MOV GAME_ACTIVE, 01h
+      RET
+
+    EXIT_TO_MAIN_MENU:
+      MOV GAME_ACTIVE, 00h
+      MOV CURRENT_SCENE, 00h
+      RET
+
+  DRAW_GAME_OVER_MENU ENDP
+
+  DRAW_MAIN_MENU PROC NEAR
+    CALL CLEAR_SCREEN                  ; Clear the screen before displaying the menu
+;   Shows the menu title
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 04h                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_MAIN_MENU_TITLE       ; give DX a pointer to the string TEXT_MAIN_MENU_TITLE
+    INT 21h
+
+;   Singleplayer message
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 06h                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_MAIN_MENU_SINGLEPLAYER       ; give DX a pointer to the string TEXT_MAIN_MENU_SINGLEPLAYER
+    INT 21h
+
+;   Multiplayer message
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 08h                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_MAIN_MENU_MULTIPLAYER   ; give DX a pointer to the string TEXT_MAIN_MENU_MULTIPLAYER
+    INT 21h
+
+;   Exit message
+    MOV AH, 02h                        ; set cursor position
+    MOV BH, 00h                        ; set page number
+    MOV DH, 0Ah                        ; set row number
+    MOV DL, 04h                        ; set col number
+    INT 10h
+
+    MOV AH, 09h
+    LEA DX, TEXT_MAIN_MENU_EXIT        ; give DX a pointer to the string TEXT_MAIN_MENU_EXIT
+    INT 21h
+
+;   Waits for key press
+    MOV AH, 00h
+    INT 16h
+
+    RET
+  DRAW_MAIN_MENU ENDP
+
+  UPDATE_WINNER_TEXT PROC NEAR
+
+    MOV AL, WINNER_INDEX
+    ADD AL, 30h
+    MOV [TEXT_GAME_OVER_WINNER+7], AL
+  
+    RET
+  UPDATE_WINNER_TEXT ENDP
+
 
 
   CLEAR_SCREEN PROC NEAR
